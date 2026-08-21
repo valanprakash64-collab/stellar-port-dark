@@ -1,18 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { navItems, profile } from "./data";
 
-/** Sticky glass navigation with active-section tracking and a mobile sheet. */
+/**
+ * Sticky glass navigation: shrinks on scroll, hides when scrolling down,
+ * reveals when scrolling up, tracks the active section with a glowing
+ * indicator and animates the mobile sheet open/closed.
+ */
 export function NavBar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hiddenNav, setHiddenNav] = useState(false);
   const [active, setActive] = useState<string>("");
+  const [entered, setEntered] = useState(false);
+  const lastY = useRef(0);
+  const frame = useRef(0);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
+    const t = window.setTimeout(() => setEntered(true), 900);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      setHiddenNav(y > 240 && y > lastY.current + 4);
+      lastY.current = y;
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(frame.current);
+      frame.current = requestAnimationFrame(update);
+    };
+    update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      cancelAnimationFrame(frame.current);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -35,39 +60,56 @@ export function NavBar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-        scrolled ? "py-2" : "py-4"
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-out ${
+        scrolled ? "py-1.5" : "py-4"
+      } ${hiddenNav && !open ? "-translate-y-[130%]" : "translate-y-0"} ${
+        entered ? "opacity-100" : "opacity-0"
       }`}
     >
       <nav
-        className={`mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl px-4 py-3 transition-all duration-500 sm:px-6 ${
-          scrolled ? "glass mx-3 sm:mx-6" : "mx-3 border border-transparent sm:mx-6"
+        className={`mx-3 grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl px-4 transition-all duration-500 ease-out sm:mx-auto sm:px-6 ${
+          scrolled ? "glass py-2" : "border border-transparent py-3"
         }`}
         aria-label="Main navigation"
       >
         <a
           href="#top"
-          className="min-w-0 truncate font-display text-sm font-bold tracking-tight text-foreground sm:text-base"
+          className="min-w-0 truncate font-display text-sm font-bold tracking-tight text-foreground transition-colors hover:text-primary sm:text-base"
         >
           {profile.name}
         </a>
 
         <ul className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => (
-            <li key={item.id}>
+          {navItems.map((item, i) => (
+            <li
+              key={item.id}
+              className={`transition-all duration-500 ease-out ${
+                entered ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+              }`}
+              style={{ transitionDelay: `${900 + i * 70}ms` }}
+            >
               <a
                 href={`#${item.id}`}
                 data-active={active === item.id}
-                className="relative rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground data-[active=true]:text-primary"
+                className="group relative rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors duration-300 hover:text-foreground data-[active=true]:text-primary"
               >
                 {item.label}
+                <span
+                  aria-hidden
+                  className="absolute inset-x-3 -bottom-0.5 h-px origin-center scale-x-0 bg-primary opacity-0 transition-all duration-400 ease-out group-hover:scale-x-100 group-hover:opacity-60 group-data-[active=true]:scale-x-100 group-data-[active=true]:opacity-100 group-data-[active=true]:shadow-[0_0_10px_var(--glow)]"
+                />
               </a>
             </li>
           ))}
-          <li>
+          <li
+            className={`transition-all duration-500 ease-out ${
+              entered ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+            }`}
+            style={{ transitionDelay: `${900 + navItems.length * 70}ms` }}
+          >
             <a
               href={`mailto:${profile.email}`}
-              className="ml-2 inline-flex min-h-10 items-center rounded-lg border border-primary/40 bg-primary/10 px-4 text-sm font-medium text-primary transition-all hover:bg-primary/20 hover:shadow-[var(--shadow-glow)]"
+              className="ml-2 inline-flex min-h-10 items-center rounded-lg border border-primary/40 bg-primary/10 px-4 text-sm font-medium text-primary transition-all duration-300 hover:-translate-y-0.5 hover:bg-primary/20 hover:shadow-[var(--shadow-glow)] active:translate-y-0 active:scale-[0.98]"
             >
               Hire me
             </a>
@@ -79,29 +121,49 @@ export function NavBar() {
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg border border-border bg-muted/40 text-foreground transition-colors hover:bg-muted md:hidden"
+          className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-lg border border-border bg-muted/40 text-foreground transition-all duration-300 hover:bg-muted active:scale-95 md:hidden"
         >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <span className="relative grid h-5 w-5 place-items-center">
+            <Menu
+              className={`absolute h-5 w-5 transition-all duration-300 ${
+                open ? "rotate-90 opacity-0" : "rotate-0 opacity-100"
+              }`}
+            />
+            <X
+              className={`absolute h-5 w-5 transition-all duration-300 ${
+                open ? "rotate-0 opacity-100" : "-rotate-90 opacity-0"
+              }`}
+            />
+          </span>
         </button>
       </nav>
 
-      {open ? (
-        <div className="glass mx-3 mt-2 rounded-2xl p-3 md:hidden sm:mx-6">
-          <ul className="flex flex-col">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  onClick={() => setOpen(false)}
-                  className="flex min-h-11 items-center rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <div
+        className={`mx-3 overflow-hidden transition-all duration-400 ease-out md:hidden ${
+          open ? "mt-2 max-h-96 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <ul className="glass flex flex-col rounded-2xl p-3">
+          {navItems.map((item, i) => (
+            <li
+              key={item.id}
+              className={`transition-all duration-300 ease-out ${
+                open ? "translate-x-0 opacity-100" : "translate-x-3 opacity-0"
+              }`}
+              style={{ transitionDelay: open ? `${80 + i * 50}ms` : "0ms" }}
+            >
+              <a
+                href={`#${item.id}`}
+                onClick={() => setOpen(false)}
+                data-active={active === item.id}
+                className="flex min-h-11 items-center rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground data-[active=true]:text-primary"
+              >
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </header>
   );
 }
