@@ -195,16 +195,20 @@
   pointer-events: none;
 }
 
-/* Scroll reveal */
+/* Scroll reveal — fade up + blur-to-sharp */
 @utility reveal {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(28px);
+  filter: blur(8px);
+  will-change: opacity, transform;
   transition:
-    opacity 0.7s var(--ease-out-soft),
-    transform 0.7s var(--ease-out-soft);
+    opacity 0.8s var(--ease-out-soft),
+    transform 0.8s var(--ease-out-soft),
+    filter 0.8s var(--ease-out-soft);
   &[data-visible="true"] {
     opacity: 1;
     transform: none;
+    filter: blur(0);
   }
 }
 
@@ -218,6 +222,21 @@
   }
 }
 
+@keyframes drift-slow {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  33% {
+    transform: translate3d(6%, -4%, 0);
+  }
+  66% {
+    transform: translate3d(-5%, 5%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes shimmer-line {
   0% {
     transform: translateX(-100%);
@@ -227,8 +246,123 @@
   }
 }
 
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes loader-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @utility animate-float-slow {
   animation: float-slow 14s ease-in-out infinite;
+}
+
+@utility animate-drift-slow {
+  animation: drift-slow 34s ease-in-out infinite;
+}
+
+@utility animate-pulse-soft {
+  animation: pulse-soft 3.4s ease-in-out infinite;
+}
+
+@utility animate-loader-sweep {
+  animation: loader-sweep 1.1s var(--ease-out-soft) infinite;
+}
+
+/* Slow shimmer across gradient text keywords */
+@utility text-shimmer {
+  background: linear-gradient(
+    100deg,
+    oklch(0.98 0.01 250),
+    oklch(0.85 0.13 190) 40%,
+    oklch(0.74 0.16 292) 60%,
+    oklch(0.98 0.01 250)
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 9s ease-in-out infinite;
+}
+
+/* Animated gradient border revealed on hover */
+@utility gradient-border {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      120deg,
+      oklch(0.8 0.14 190 / 70%),
+      oklch(0.68 0.16 292 / 70%),
+      oklch(0.8 0.14 190 / 70%)
+    );
+    background-size: 220% 100%;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.45s var(--ease-out-soft);
+    pointer-events: none;
+  }
+  &:hover::before {
+    opacity: 1;
+    animation: gradient-pan 4.5s ease-in-out infinite;
+  }
+}
+
+/* Animated link underline */
+@utility link-underline {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.35s var(--ease-out-soft);
+  }
+  &:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* Tilt container for pointer-reactive cards */
+@utility tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.5s var(--ease-out-soft);
 }
 
 @utility grid-backdrop {
@@ -238,3 +372,31 @@
   background-size: 64px 64px;
   mask-image: radial-gradient(ellipse at 50% 0%, black, transparent 72%);
 }
+
+/* Accessibility: honour reduced-motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+/* Keyboard focus must always stay obvious */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
